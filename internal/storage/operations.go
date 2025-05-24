@@ -2,46 +2,70 @@ package storage
 
 import (
 	"encoding/json"
-	_"fmt"
+	"fmt"
 	"io"
 	"maps"
 	"os"
-	"path/filepath"
-	_ "reflect"
 	"slices"
+	"sync"
 
 	"gitnotes/internal/models"
+	"gitnotes/internal/tools"
 )
 
 type NotesMap map[string]models.Note
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
+var loadNotesFunc = LoadNotes
 
-// TODO: Use UserHomeDIR to store my json file
-func GetHomePath() string {
-	path, err := os.UserHomeDir()
+func LoadNotesRaw(limit int, pathfile string) ([]NotesMap, error) {
+	data, err := os.ReadFile(pathfile)
 	if err != nil {
-		panic(err)
+		return []NotesMap{}, err
 	}
 
-	jsonNotesPath := filepath.Join(path, ".gitnotes", "gitnotes.json")
-	return jsonNotesPath
+	var raw []json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return []NotesMap{{"s": models.Note{Title: "lol"}}}, err
+	}
+
+	var (
+		wg    sync.WaitGroup // for waiting all goroutines
+		mu    sync.Mutex     // for shared variables
+		notes []NotesMap
+	)
+
+	for _, item := range raw {
+		wg.Add(1)
+		go func(item json.RawMessage) {
+			defer wg.Done()
+
+			var note NotesMap
+			if err := json.Unmarshal(item, &note); err != nil {
+				fmt.Println("Decode error:", err) // log or collect if needed
+				return
+			}
+
+			mu.Lock()
+			notes = append(notes, note)
+			mu.Unlock()
+		}(item)
+	}
+
+	wg.Wait()
+	return notes, nil
 }
 
-func LoadNotes(limit int) ([]NotesMap, error) {
+func LoadNotes(limit int, filename string) ([]NotesMap, error) {
 	// Function return all notes stored in gitnotes.json
 	var notes []NotesMap
 
-	if exists := fileExists(GetHomePath()); !exists {
-		if _, err := os.Create(GetHomePath()); err != nil {
+	if exists := tools.FileExists(filename); !exists {
+		if _, err := os.Create(filename); err != nil {
 			return nil, err
 		}
 	}
 
-	reader, err := os.Open(GetHomePath())
+	reader, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -65,14 +89,14 @@ func LoadNotes(limit int) ([]NotesMap, error) {
 
 func SaveNotes(notes []NotesMap) error {
 	// Save to gitnotes.json slice of note
-	notesLoaded, err := LoadNotes(100)
+	notesLoaded, err := LoadNotes(100, tools.GetHomePath())
 	if err != nil {
 		return err
 	}
 
 	concatNotes := slices.Concat(notesLoaded, notes)
 
-	file, err := os.OpenFile(GetHomePath(), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0o666)
+	file, err := os.OpenFile(tools.GetHomePath(), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0o666)
 	if err != nil {
 		return err
 	}
@@ -87,62 +111,101 @@ func SaveNotes(notes []NotesMap) error {
 	return nil
 }
 
-func FindByRef(ref string) (models.Note, error) {
-	// Find all notes in gitnotes.json which satisfy ref
-	notes, err := LoadNotes(100)
+// Find all notes in gitnotes.json which satisfy ref
+func FindByParameter(parameter string, value string) ([]models.Note, error) {
+	foundNotes := []models.Note{}
+	notes, err := loadNotesFunc(100, tools.GetHomePath())
 	if err != nil {
-		return models.Note{}, err
+		return []models.Note{}, err
 	}
 
-	for _, note := range notes {
-		for key := range maps.Keys(note) {
-			if key == ref {
-				return note[key], nil
+	switch parameter {
+	case "title":
+		for _, notesmap := range notes {
+			for note := range maps.Values(notesmap) {
+				if note.Title == value {
+					foundNotes = append(foundNotes, note)
+				}
+			}
+		}
+	case "ref":
+		for _, notesmap := range notes {
+			for key := range maps.Keys(notesmap) {
+				if key == value {
+					foundNotes = append(foundNotes, notesmap[key])
+				}
+			}
+		}
+	case "tag":
+		for _, notesmap := range notes {
+			for note := range maps.Values(notesmap) {
+				if note.Tag == value {
+					foundNotes = append(foundNotes, note)
+				}
 			}
 		}
 	}
 
-	return models.Note{}, nil
-
-	// for _, note := range notes {
-	// 	for value := range maps.Values(note) {
-	// 		if value.Title == ref || value.Content == ref {
-	// 			return note, nil
-	// 		}
-	// 	}
-	// }
-	// return NotesMap{}, nil
+	return foundNotes, nil
 }
 
-// func RemoveNotes(reader io.Reader, notesToRemove []NotesMap) error{
-// 	notes, err := LoadNotes(reader)
-// 	if err != nil {
-// 		return err
-// 	}
+func RemoveNotesByReference(reference string, filename string) error {
+	notes, err := loadNotesFunc(100, tools.GetHomePath())
+	if err != nil {
+		return err
+	}
 
-// 	var notesToKeep []NotesMap
+	var notesToKeep []NotesMap
 
-// 	for _, note := range notes {
-// 		for _, noteToRemove := range notesToRemove {
-// 			if !reflect.DeepEqual(note, noteToRemove) {
-// 				notesToKeep = append(notesToKeep, note)
-// 			}
-// 		}
-// 	}
+	for _, note := range notes {
+		for key := range maps.Keys(note) {
+			if key != reference {
+				notesToKeep = append(notesToKeep, note)
+			}
+		}
+	}
 
-// 	file, err := os.OpenFile("gitnotes.json", os.O_WRONLY | os.O_TRUNC, 0666)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer file.Close()
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, 0o666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-// 	encoder := json.NewEncoder(file)
-// 	err = encoder.Encode(notesToKeep)
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(notesToKeep)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-// 	if err != nil {
-// 		return err
-// 	}
+func RemoveNotesByTitle(title string, filename string) error {
+	notes, err := loadNotesFunc(100, tools.GetHomePath())
+	if err != nil {
+		return err
+	}
 
-// 	return nil
+	var notesToKeep []NotesMap
 
-// }
+	for _, note := range notes {
+		for value := range maps.Values(note) {
+			if value.Title != title {
+				notesToKeep = append(notesToKeep, note)
+			}
+		}
+	}
+
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_TRUNC, 0o666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(notesToKeep)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

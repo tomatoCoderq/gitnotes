@@ -4,6 +4,7 @@ A personal Git note-taking CLI tool for attaching, viewing, and managing notes o
 
 ---
 
+
 ## 🏗️ Project Setup
 - [X] Create GitHub repository `gitnotes`
 - [ ] Initialize Go module: `go mod init github.com/yourusername/gitnotes`
@@ -67,6 +68,7 @@ A personal Git note-taking CLI tool for attaching, viewing, and managing notes o
 - [ ] Resolve ref
 - [ ] Prompt for note message via terminal
 - [ ] Save note to storage
+- [ ] Add flag for tags {Tags (`TODO`, `BUG`, `INFO`, `CRITICAL`)}
 
 #### 🧪 Tests:
 - [ ] Validate ref resolution
@@ -102,6 +104,8 @@ A personal Git note-taking CLI tool for attaching, viewing, and managing notes o
 - [ ] Resolve ref
 - [ ] Confirm deletion unless `--force`
 - [ ] Remove from storage
+- [ ] Remove by refernce (removes all notes related to the branch)
+- [ ] Remove by note title (removes one specific note)
 
 #### 🧪 Tests:
 - [ ] Remove existing note
@@ -122,9 +126,9 @@ A personal Git note-taking CLI tool for attaching, viewing, and managing notes o
 ---
 
 ## 🎨 Usability Features
-- [ ] Format timestamps for readability (`Mon Jan 2 15:04`)
+- [X] Format timestamps for readability (`Mon Jan 2 15:04`)
 - [ ] Use colors or bold text for output (optional)
-- [ ] Handle paths across OS (Windows/macOS/Linux)
+- [X] Handle paths across OS (Windows/macOS/Linux)
 
 #### 🧪 Tests:
 - [ ] Format function returns correct date strings

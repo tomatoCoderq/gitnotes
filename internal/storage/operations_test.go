@@ -1,76 +1,124 @@
 package storage
 
 import (
-	"gitnotes/internal/models"
+	"encoding/json"
+	"fmt"
+	"os"
 	"reflect"
 	"slices"
 	"testing"
 	"time"
 
+	"gitnotes/internal/models"
+	"gitnotes/internal/tools"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func TestLoadNotesRaw(t *testing.T) {
+	tmpDir := t.TempDir()
+	originalWD, _ := os.Getwd()
+	defer os.Chdir(originalWD)
+
+	err := os.Chdir(tmpDir)
+	assert.NoError(t, err)
+
+	// Create dummy notes data
+	testData := []NotesMap{
+		{"abc123": {Title: "Test 2", Content: "One"}},
+		{"def456": {Title: "Test 1", Content: "Two"}},
+	}
+
+	// Write to gitnotes.json
+	file, err := os.Create("gitnotes.json")
+	assert.NoError(t, err)
+
+	df, _ := os.Getwd()
+	fmt.Println("CURR", df)
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(testData)
+	assert.NoError(t, err)
+	file.Close()
+
+	// Run the function
+	notes, err := LoadNotesRaw(100, "gitnotes.json")
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(notes))
+	assert.Equal(t, "Test 1", notes[0]["def456"].Title)
+	assert.Equal(t, "Test 2", notes[1]["abc123"].Title)
+}
 
 // TODO: Add tests with emulated file system
 func TestLoadNotes(t *testing.T) {
 	// Test LoadNotes function
+	tmpDir := t.TempDir()
+	originalWD, _ := os.Getwd()
+	defer os.Chdir(originalWD)
 
-	t.Run("Empty File", func(t *testing.T) {	
-		t.Helper()
-		notes, err := LoadNotes()
-		if err != nil {
-			t.Errorf("LoadNotes() error = %v", err)
-		}
-		if len(notes) != 0 {
-			t.Logf("LoadNotes() returned more than 0 notes")
-		}
-	})
+	err := os.Chdir(tmpDir)
+	assert.NoError(t, err)
 
+	// Create dummy notes data
+	testData := []NotesMap{
+		{"abc123": {Title: "Test 2", Content: "One"}},
+		{"def456": {Title: "Test 1", Content: "Two"}},
+	}
 
-	t.Run("Non empty", func(t *testing.T) {
-		timestamp := time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)
-	
-		valid_notes := []NotesMap{
-			{"91919" : {Title: "Note 0404", Content: "Content 1", CreatedAt: timestamp}},
-			{"91912" : {Title: "Note 0401", Content: "Content 1", CreatedAt: timestamp}},
-		}
-	
-		notes, err := LoadNotes()
-		if err != nil {
-			t.Errorf("LoadNotes() error = %v", err)
-		}
-		if len(notes) == 0 {
-			t.Errorf("LoadNotes() returned no notes")
-		}
-		if !reflect.DeepEqual(valid_notes, notes) {
-			t.Errorf("Notes are not the same! Got %v Want %v", notes, valid_notes)
-		}
-	})
+	// Write to gitnotes.json
+	file, err := os.Create("gitnotes.json")
+	assert.NoError(t, err)
 
+	df, _ := os.Getwd()
+	fmt.Println("CURR", df)
 
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(testData)
+	assert.NoError(t, err)
+	file.Close()
+
+	// Run the function
+	notes, err := LoadNotes(100, "gitnotes.json")
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(notes))
+	assert.Equal(t, "Test 1", notes[0]["def456"].Title)
+	assert.Equal(t, "Test 2", notes[1]["abc123"].Title)
+}
+
+func BenchmarkLoadNotes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		LoadNotes(5, tools.GetHomePath())
+	}
+}
+
+func BenchmarkLoadNotesRaw(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		LoadNotesRaw(5, tools.GetHomePath())
+	}
 }
 
 func TestSaveNotes(t *testing.T) {
 	// Test LoadNotes function
 
+	limit := 5
+
 	timestamp := time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)
-	
+
 	notes_to_save := []NotesMap{
-		{"20000" : {Title: "Note 0404", Content: "Content 1", CreatedAt: timestamp}},
+		{"20000": {Title: "Note 0404", Content: "Content 1", CreatedAt: timestamp}},
 	}
 
-	valid_notes, err := LoadNotes()
-
+	valid_notes, err := LoadNotes(limit, tools.GetHomePath())
 	if err != nil {
 		t.Errorf("LoadNotes() error = %v", err)
 	}
 
 	err = SaveNotes(notes_to_save)
-
 	if err != nil {
 		t.Errorf("SaveNotes() error = %v", err)
 	}
 
-	read_notes, err := LoadNotes()
-
+	read_notes, err := LoadNotes(limit, tools.GetHomePath())
 	if err != nil {
 		t.Errorf("LoadNotes() readnotes error = %v", err)
 	}
@@ -80,78 +128,127 @@ func TestSaveNotes(t *testing.T) {
 	}
 }
 
-func TestFindByRef(t *testing.T) {
-	t.Run("No found", func(t *testing.T) {
-		note, err := FindByRef("Note 123")
+func TestFindBy(t *testing.T) {
+	mockNote := NotesMap{
+		"abc123": {Title: "Mock Title", Content: "Mock Content", CreatedAt: time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC), Tag: "BUG"},
+		"abc":    {Title: "Mock Title2", Content: "Mock Content2", CreatedAt: time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC), Tag: "CRITICAL"},
+	}
+
+	loadNotesFunc = func(limit int, filename string) ([]NotesMap, error) {
+		return []NotesMap{mockNote}, nil
+	}
+	t.Run("Not found by reference", func(t *testing.T) {
+		notes, err := FindByParameter("Note 123", "reference")
 		if err != nil {
 			t.Errorf("Find By red error: %v", err)
 		}
-		if !reflect.DeepEqual(note, models.Note{}) {
-			t.Errorf("Should be empty")
-		}
+
+		assert.Equal(t, notes, []models.Note{})
 	})
 
-
-	t.Run("Found ref", func(t *testing.T) {
-		note, err := FindByRef("20000")
+	t.Run("Not found by title", func(t *testing.T) {
+		notes, err := FindByParameter("WRONG TITLE", "title")
 		if err != nil {
 			t.Errorf("Find By red error: %v", err)
 		}
 
-		if !reflect.DeepEqual(note, models.Note{Title: "Note 0404", Content: "Content 1", CreatedAt: time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)}) {
-			t.Errorf("Notes are not the same! Got %v Want %v", note, models.Note{Title: "Note 1", Content: "Content 1", CreatedAt: time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)})
-		}
-
+		assert.Equal(t, notes, []models.Note{})
 	})
 
+	t.Run("Not found by tag", func(t *testing.T) {
+		notes, err := FindByParameter("WRONG TAG", "tag")
+		if err != nil {
+			t.Errorf("Find By red error: %v", err)
+		}
+
+		assert.Equal(t, notes, []models.Note{})
+	})
+
+	t.Run("Found by reference", func(t *testing.T) {
+		notes, err := FindByParameter("ref", "abc123")
+		if err != nil {
+			t.Errorf("Find By red error: %v", err)
+		}
+		assert.Equal(t, []models.Note{mockNote["abc123"]}, notes)
+	})
+
+	t.Run("Found by title", func(t *testing.T) {
+		notes, err := FindByParameter("title", "Mock Title")
+		if err != nil {
+			t.Errorf("Find By red error: %v", err)
+		}
+		assert.Equal(t, notes, []models.Note{mockNote["abc123"]})
+	})
+
+	t.Run("Found by tag", func(t *testing.T) {
+		notes, err := FindByParameter("tag", "CRITICAL")
+		if err != nil {
+			t.Errorf("Find By red error: %v", err)
+		}
+		assert.Equal(t, notes, []models.Note{mockNote["abc"]})
+	})
 }
 
+func TestRemoveNotesByReference(t *testing.T) {
+	// Test LoadNotes function
+	tmpFile, err := os.CreateTemp("", "test_gitnotes_*.json")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name()) // clean up
 
-// func TestRemoveNotes(t *testing.T) {
-// 	// Test LoadNotes function
+	mockNotes := []NotesMap{
+		{"abc123": models.Note{Title: "Note1"}},
+		{"xyz789": models.Note{Title: "Note2"}},
+	}
 
-// 	t.Run("Standard remove", func(t *testing.T) {
-// 		timestamp := time.Date(2023, 10, 1, 0, 0, 0, 0, time.UTC)
-	
-// 		notes_to_remove := []models.Note{
-// 			{Title: "Note 0404", Content: "Content 1", CreatedAt: timestamp},
-// 		}
-	
-// 		reader1, _ := os.Open("gitnotes.json")
-// 		valid_notes, err := LoadNotes(reader1)
-	
-// 		if err != nil {
-// 			t.Errorf("LoadNotes() error = %v", err)
-// 		}
-	
-// 		reader1.Seek(0, io.SeekStart)
-// 		err = RemoveNotes(reader1, notes_to_remove)
-	
-// 		if err != nil {
-// 			t.Errorf("SaveNotes() error = %v", err)
-// 		}
-// 		reader2, _ := os.Open("gitnotes.json")
-	
-// 		read_notes, err := LoadNotes(reader2)
-	
-// 		if err != nil {
-// 			t.Errorf("LoadNotes() readnotes error = %v", err)
-// 		}
-	
-// 		validNotesDeleted := make([]models.Note, 0)
+	loadNotesFunc = func(limit int, filename string) ([]NotesMap, error) {
+		return mockNotes, nil
+	}
+	defer func() { loadNotesFunc = LoadNotes }()
 
-// 		for _, note := range valid_notes {
-// 			for _, noteToRemove := range notes_to_remove {
-// 				if !reflect.DeepEqual(note, noteToRemove) {
-// 					validNotesDeleted = append(validNotesDeleted, note)
-// 				}
-// 			}
-// 		}
+	err = RemoveNotesByReference("abc123", tmpFile.Name())
+	assert.NoError(t, err)
 
-// 		if !slices.Equal(validNotesDeleted, read_notes) {
-// 			t.Errorf("Notes are not the same! Got %v Want %v", read_notes, validNotesDeleted)
-// 		}
-// 	})
+	// Check file content
+	content, err := os.ReadFile(tmpFile.Name())
+	assert.NoError(t, err)
 
+	var saved []NotesMap
+	err = json.Unmarshal(content, &saved)
+	assert.NoError(t, err)
 
-// }
+	assert.Len(t, saved, 1)
+	_, exists := saved[0]["xyz789"]
+	assert.True(t, exists)
+}
+
+func TestRemoveNotesByTitle(t *testing.T) {
+	// Test LoadNotes function
+	tmpFile, err := os.CreateTemp("", "test_gitnotes_*.json")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name()) // clean up
+
+	mockNotes := []NotesMap{
+		{"abc123": models.Note{Title: "Note1"}},
+		{"xyz789": models.Note{Title: "Note2"}},
+	}
+
+	loadNotesFunc = func(limit int, filename string) ([]NotesMap, error) {
+		return mockNotes, nil
+	}
+	defer func() { loadNotesFunc = LoadNotes }()
+
+	err = RemoveNotesByTitle("Note1", tmpFile.Name())
+	assert.NoError(t, err)
+
+	// Check file content
+	content, err := os.ReadFile(tmpFile.Name())
+	assert.NoError(t, err)
+
+	var saved []NotesMap
+	err = json.Unmarshal(content, &saved)
+	assert.NoError(t, err)
+
+	assert.Len(t, saved, 1)
+	_, exists := saved[0]["xyz789"]
+	assert.True(t, exists)
+}

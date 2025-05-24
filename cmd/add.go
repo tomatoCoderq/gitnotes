@@ -6,31 +6,49 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"os"
 	_ "os"
 	"strings"
 	"time"
 
-	"gitnotes/internal/commands"
+	"gitnotes/internal/tools"
 	"gitnotes/internal/models"
 	"gitnotes/internal/storage"
-
-	cc "github.com/ivanpirog/coloredcobra"
-
 
 	"github.com/spf13/cobra"
 
 )
 
-var resolveGitRef = commands.ResolveGitRef
+var resolveGitRef = tools.ResolveGitRef
 
 // addCmd represents the add command
 var addCmd = &cobra.Command{
 	Use:   "add",
-	Short: "Add a note to specific GIT commit or branch",
+	Short: "Add a note related to git commit or branch",
+	Long: "\033[1mYou can use this command to annotate commits, tags, or branches with structured notes.\033[0m\n\n" +
+	"\033[1mExamples:\033[0m\n" +
+	"  \033[32mgitnotes add a ... \"Fix Bug\" ... \"This commit fixes...\"\033[0m\n" +
+	"  \033[32mgitnotes add ab ... \"Start Login\" ... \"Initial login...\"\033[0m\n\n" +
+	"\033[1mArguments:\033[0m\n" +
+	"  \033[1;34mref\033[0m      Git commit hash...\n" +
+	"  \033[1;34mtitle\033[0m    A short title...\n" +
+	"  \033[1;34mcontent\033[0m  Detailed content...\n\n" +
+	"\033[1mNote:\033[0m\n" +
+	"  If a note with the same reference already exists, \033[31mit will not be overwritten.\033[0m",  
 	Args: cobra.ExactArgs(1),
-
 	RunE: func(cmd *cobra.Command, args []string) error {
+		tag, err := cmd.Flags().GetString("tag")
+		if err != nil {
+			return fmt.Errorf("failed during parsing tag: %v", err)
+		}
+
+		valid_tags := map[string]bool {
+			"TODO":true, "BUG":true, "INFO":true, "CRITICAL":true, "DEFAULT": true,
+		}
+
+		if !valid_tags[tag] && tag != "" {
+			return fmt.Errorf("tag is invalid. Should be `TODO`, `BUG`, `INFO`, or `CRITICAL`")
+		}
+
 		ref := args[0]
 	
 		standardRef, err := resolveGitRef(ref)
@@ -38,43 +56,41 @@ var addCmd = &cobra.Command{
 			return fmt.Errorf("could not resolve reference: %s", ref)
 		}
 
-		cmd.Println("Write your note name and description:")
+		cmd.Println("\033[1mWrite \033[42mtitle\033[0m \033[1mfor your note:\033[0m")
 		reader := bufio.NewReader(cmd.InOrStdin())
-		message, err := reader.ReadString('\n')
 
-		cmd.Println("Is input redirected?", cmd.InOrStdin() != os.Stdin)
-		
+		title, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read description: %v", err)
+		}
+		title = strings.TrimSpace(title)
+
+		cmd.Println("\033[1mWrite \033[42mdescription\033[0m \033[1mfor your note:\033[0m")
+
+		message, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read description: %v", err)
 		}
 
 		message = strings.TrimSpace(message)
 
-
 		note := models.Note{
-			Title: "title",
+			Title: title,
 			Content: message,
 			CreatedAt: time.Now(),
+			Tag: tag,
 		}
 
 		if err = storage.SaveNotes([]storage.NotesMap{{standardRef:note}}); err != nil {
 			return fmt.Errorf("failed to save note: %v", err)
 		}
-		cmd.Println("✅ Note added for", standardRef)
+		cmd.Println("Note \033[1madded\033[0m for", standardRef, "succesfully!")
 		return nil
 	},
 }
 
 func init() {
-
-	cc.Init(&cc.Config{
-        RootCmd:       rootCmd,
-        Headings:      cc.HiCyan + cc.Bold + cc.Underline,
-        Commands:      cc.HiYellow + cc.Bold,
-        Example:       cc.Italic,
-        ExecName:      cc.Bold,
-        Flags:         cc.Bold,
-    })
+	addCmd.Flags().StringP("tag", "t", "DEFAULT", "Include tag to the specific note: `TODO`, `BUG`, `INFO`, `CRITICAL`")
 
 	rootCmd.AddCommand(addCmd)
 

@@ -5,42 +5,54 @@ package cmd
 
 import (
 	"fmt"
+	_ "maps"
+	"math/rand/v2"
+
 	"gitnotes/internal/storage"
-	_"maps"
+	"gitnotes/internal/tools"
 
 	"github.com/spf13/cobra"
 )
 
+func IntRange(min, max int) int {
+	return rand.IntN(max-min) + min
+}
+
 // listCmd represents the list command
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use: "list",
+	Short: "\033[1mDisplay all notes in the system.\033[0m\n\n" +
+		"This command outputs a list of all stored notes along with their associated references and titles.\n\n" +
+		"\033[1mExamples:\033[0m\n" +
+		"  \033[32mgitnotes list\033[0m\n" +
+		"  \033[32mgitnotes list --limit 10\033[0m\n\n" +
+		"\033[1mFlags:\033[0m\n" +
+		"  \033[1;34m--limit\033[0m   (Optional) Maximum number of notes to display. If number is greater than actual number of notes then all notes are printed",
 	Args: cobra.ExactArgs(0),
-	RunE: func(cmd *cobra.Command, args []string) error{
+	RunE: func(cmd *cobra.Command, args []string) error {
 		limit, err := cmd.Flags().GetInt("limit")
 		if err != nil {
 			return fmt.Errorf("failing while getting limit: %v", err)
 		}
 
-		notes, err := storage.LoadNotes(limit)
+		notes, err := storage.LoadNotes(limit, tools.GetHomePath())
 		if err != nil {
 			return fmt.Errorf("failing at getting all notes: %v", err)
 		}
-		
 
 		for _, note := range notes {
 			for ref, value := range note {
-				cmd.Printf("'%s'\n", ref)
+
+				randomColor := IntRange(30, 37)
+
+				cmd.Printf("\n\033[1;%dm'%s'\033[0m\n", randomColor, ref)
 				cmd.Printf("---\n")
-				cmd.Printf("Title: %s\n", value.Title)
-				cmd.Printf("Content: %s\n", value.Content)
-				cmd.Printf("Created: %s\n\n", value.CreatedAt.Format("2006-01-02 15:04"))
+				cmd.Printf("\033[3mTitle:\033[0m %s\n", value.Title)
+				cmd.Printf("\033[3mDescription:\033[0m %s\n", value.Content)
+				cmd.Printf("\033[3mCreated:\033[0m %s\n", value.CreatedAt.Format("2006-January-02 15:04"))
+				if value.Tag != "DEFAULT" {
+					cmd.Printf("\033[3mTag:\033[0m %s\n\n", value.Tag)
+				}
 			}
 		}
 
@@ -51,7 +63,6 @@ to quickly create a Cobra application.`,
 func init() {
 	listCmd.Flags().IntP("limit", "l", 10, "Limit number of notes")
 	rootCmd.AddCommand(listCmd)
-
 
 	// Here you will define your flags and configuration settings.
 
