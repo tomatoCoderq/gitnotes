@@ -49,7 +49,6 @@ func TestLoadNotesRaw(t *testing.T) {
 	assert.Equal(t, "Test 2", notes[1]["abc123"].Title)
 }
 
-// TODO: Add tests with emulated file system
 func TestLoadNotes(t *testing.T) {
 	// Test LoadNotes function
 	tmpDir := t.TempDir()
