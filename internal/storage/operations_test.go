@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"gitnotes/internal/models"
-	"gitnotes/internal/tools"
+	"github.com/tomatoCoderq/gitnotes/internal/models"
+	"github.com/tomatoCoderq/gitnotes/internal/tools"
 
 	"github.com/stretchr/testify/assert"
 )

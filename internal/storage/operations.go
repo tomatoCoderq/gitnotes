@@ -9,8 +9,8 @@ import (
 	"slices"
 	"sync"
 
-	"gitnotes/internal/models"
-	"gitnotes/internal/tools"
+	"github.com/tomatoCoderq/gitnotes/internal/models"
+	"github.com/tomatoCoderq/gitnotes/internal/tools"
 )
 
 type NotesMap map[string]models.Note

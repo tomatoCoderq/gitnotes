@@ -1,4 +1,4 @@
-module gitnotes
+module github.com/tomatoCoderq/gitnotes
 
 go 1.24.0
 

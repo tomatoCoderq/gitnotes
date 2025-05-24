@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"gitnotes/internal/storage"
-	"gitnotes/internal/tools"
+	"github.com/tomatoCoderq/gitnotes/internal/storage"
+	"github.com/tomatoCoderq/gitnotes/internal/tools"
 
 	"github.com/spf13/cobra"
 )

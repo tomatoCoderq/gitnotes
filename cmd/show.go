@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 
-	"gitnotes/internal/models"
-	"gitnotes/internal/storage"
+	"github.com/tomatoCoderq/gitnotes/internal/models"
+	"github.com/tomatoCoderq/gitnotes/internal/storage"
 
 	"github.com/spf13/cobra"
 )
