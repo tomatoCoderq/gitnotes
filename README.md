@@ -25,6 +25,74 @@
 ### Build from source
 
 ```bash
-git clone https://github.com/yourusername/gitnotes.git
+git clone https://github.com/tomatoCoderq/gitnotes.git
 cd gitnotes
 go build -o gitnotes
+```
+
+You can now run the binary:
+
+```bash
+./gitnotes --help
+```
+
+---
+
+## Usage
+
+### Add a Note
+
+```bash
+gitnotes add HEAD
+```
+
+You'll be prompted to enter your note. The note is saved against the full SHA that `HEAD` points to.
+
+### Show Notes for a Ref
+
+```bash
+gitnotes show <ref>
+```
+
+Example:
+
+```bash
+gitnotes show abc1234
+```
+
+### List All Notes
+
+```bash
+gitnotes list
+```
+
+This displays all refs that have associated notes and their contents.
+
+### Remove Notes
+
+```bash
+gitnotes rm <ref>
+gitnotes rm -p title SomeTitle
+```
+
+Removes all notes for a given ref or for a given title (requires specification).
+
+---
+
+## Data Storage
+
+Notes are stored locally in:
+
+```
+./gitnotes.db
+```
+
+---
+
+## Roadmap
+
+- [ ] Expand tags/categories for notes
+- [ ] Export notes to Markdown
+- [ ] Shell completions (bash, zsh)
+
+---
