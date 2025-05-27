@@ -5,15 +5,17 @@ import (
 	"path/filepath"
 )
 
+const (
+	fileName = "gitnotes.db"
+)
 
-// TODO: Use UserHomeDIR to store my json file
 func GetHomePath() string {
 	path, err := os.UserHomeDir()
 	if err != nil {
 		panic(err)
 	}
-	
-	jsonNotesPath := filepath.Join(path, ".gitnotes", "gitnotes.json")
+
+	jsonNotesPath := filepath.Join(path, ".gitnotes", fileName)
 	return jsonNotesPath
 }
 

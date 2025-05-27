@@ -14,11 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// rmCmd represents the rm command
-var rmCmd = &cobra.Command{
-	Use:   "rm",
-	Short: "Remove added note",
-	Long: "\033[1mRemove a note associated with a Git reference.\033[0m\n\n" +
+const (
+	longDescriptionRm = "\033[1mRemove a note associated with a Git reference.\033[0m\n\n" +
 		"This command permanently deletes the note from the notes storage (e.g., gitnotes.json).\n" +
 		"Use it when a note is outdated or added by mistake.\n\n" +
 		"\033[1mExamples:\033[0m\n" +
@@ -27,7 +24,15 @@ var rmCmd = &cobra.Command{
 		"\033[1mArguments:\033[0m\n" +
 		"  \033[1;34mref\033[0m   Git commit hash, tag, or branch name to remove the note for.\n\n" +
 		"\033[1mNote:\033[0m\n" +
-		"  \033[31mThis action is irreversible.\033[0m Make sure you intend to delete the note.",
+		"  \033[31mThis action is irreversible.\033[0m Make sure you intend to delete the note."
+)
+
+
+// rmCmd represents the rm command
+var rmCmd = &cobra.Command{
+	Use:   "rm",
+	Short: "Remove added note",
+	Long: longDescriptionRm,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		force, err := cmd.Flags().GetBool("force")
@@ -35,9 +40,28 @@ var rmCmd = &cobra.Command{
 			return fmt.Errorf("failed during parsing force: %v", err)
 		}
 
-		standardRef, err := tools.ResolveGitRef(args[0])
+		parameter, err := cmd.Flags().GetString("parameter")
 		if err != nil {
-			return fmt.Errorf("failed during resolving reference: %v", err)
+			return fmt.Errorf("failed during parsing parameter: %v", err)
+		}
+
+		var ref string
+
+		if strings.ToLower(parameter) == "ref" {
+			ref = args[0]
+			ref, err = tools.ResolveGitRef(ref)
+			if err != nil {
+				return fmt.Errorf("failed during resolving reference: %v", err)
+			}
+		}
+
+		if strings.ToLower(parameter) == "title" {
+			ref = args[0]
+		}
+
+		pureRef, err := storage.GetRefFromNoteFields(db, ref)
+		if err != nil {
+			return fmt.Errorf("failed during getting ref: %v", err)
 		}
 
 		if !force {
@@ -52,23 +76,37 @@ var rmCmd = &cobra.Command{
 			}
 
 			if strings.Compare(strings.ToLower(answer), "y") == 0 || strings.Compare(strings.ToLower(answer), "yes") == 0 {
-				err = storage.RemoveNotesByReference(standardRef, tools.GetHomePath())
-				if err != nil {
-					return fmt.Errorf("failed during removing note: %v", err)
+				if strings.ToLower(parameter) == "ref" {
+					if err = storage.RemoveNotesByReferencBold(db, ref); err != nil {
+						return fmt.Errorf("failed during removing note: %v", err)
+					}
 				}
 
-				cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", standardRef)
+				if strings.ToLower(parameter) == "title" {
+					if err = storage.RemoveNotesByTitleBold(db, ref); err != nil {
+						return fmt.Errorf("failed during removing note: %v", err)
+					}
+				}
+
+				cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", pureRef)
 				return nil
 			} else {
 				return nil
 			}
 		} else {
-			err = storage.RemoveNotesByReference(standardRef, tools.GetHomePath())
-			if err != nil {
-				return fmt.Errorf("failed during removing note: %v", err)
+			if strings.ToLower(parameter) == "ref" {
+				if err = storage.RemoveNotesByReferencBold(db, ref); err != nil {
+					return fmt.Errorf("failed during removing note: %v", err)
+				}
 			}
 
-			cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", standardRef)
+			if strings.ToLower(parameter) == "title" {
+				if err = storage.RemoveNotesByTitleBold(db, ref); err != nil {
+					return fmt.Errorf("failed during removing note: %v", err)
+				}
+			}
+
+			cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", pureRef)
 			return nil
 		}
 	},
@@ -76,6 +114,7 @@ var rmCmd = &cobra.Command{
 
 func init() {
 	rmCmd.Flags().BoolP("force", "f", false, "Delete without additional approval")
+	rmCmd.Flags().StringP("parameter", "p", "ref", "Define parameter to delete by: ref, title")
 
 	rootCmd.AddCommand(rmCmd)
 

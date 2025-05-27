@@ -1,18 +1,26 @@
 /*
 Copyright © 2025 github.com/tmtcdr/gitnotes
-
 */
 package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/tomatoCoderq/gitnotes/internal/tools"
+
+	bolt "go.etcd.io/bbolt"
 )
 
-var cfgFile string
+var (
+	cfgFile string
+	db      *bolt.DB
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -26,7 +34,6 @@ var rootCmd = &cobra.Command{
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -34,6 +41,11 @@ func Execute() {
 }
 
 func init() {
+	var err error
+	db, err = bolt.Open(tools.GetHomePath(), 0o600, &bolt.Options{Timeout: 5 * time.Second})
+	if err != nil {
+		log.Fatalf("failed to open BoltDB: %v", err)
+	}
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.

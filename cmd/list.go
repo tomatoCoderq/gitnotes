@@ -9,10 +9,23 @@ import (
 	"math/rand/v2"
 
 	"github.com/tomatoCoderq/gitnotes/internal/storage"
-	"github.com/tomatoCoderq/gitnotes/internal/tools"
+	_"github.com/tomatoCoderq/gitnotes/internal/tools"
 
 	"github.com/spf13/cobra"
 )
+
+const (
+	longDescriptionList = "\033[1mShow a single note by its Git reference or title.\033[0m\n\n" +
+		"Use this command to view the full content of a note. You can locate a note using its Git reference\n" +
+		"(e.g., commit hash, tag, branch) or a unique title.\n\n" +
+		"\033[1mExamples:\033[0m\n" +
+		"  \033[32mgitnotes show --p ref abc123\033[0m\n" +
+		"  \033[32mgitnotes show --p title  \"Fix login bug\"\033[0m\n\n" +
+		"\033[1mFlags:\033[0m\n" +
+		"  \033[1;34m--ref\033[0m      Git commit hash, tag, or branch name.\n" +
+		"  \033[1;34m--title\033[0m    Title of the note."
+)
+
 
 func IntRange(min, max int) int {
 	return rand.IntN(max-min) + min
@@ -21,37 +34,30 @@ func IntRange(min, max int) int {
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use: "list",
-	Short: "\033[1mDisplay all notes in the system.\033[0m\n\n" +
-		"This command outputs a list of all stored notes along with their associated references and titles.\n\n" +
-		"\033[1mExamples:\033[0m\n" +
-		"  \033[32mgitnotes list\033[0m\n" +
-		"  \033[32mgitnotes list --limit 10\033[0m\n\n" +
-		"\033[1mFlags:\033[0m\n" +
-		"  \033[1;34m--limit\033[0m   (Optional) Maximum number of notes to display. If number is greater than actual number of notes then all notes are printed",
+	Short: longDescriptionList,
 	Args: cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		limit, err := cmd.Flags().GetInt("limit")
+		_, err := cmd.Flags().GetInt("limit")
 		if err != nil {
 			return fmt.Errorf("failing while getting limit: %v", err)
 		}
 
-		notes, err := storage.LoadNotes(limit, tools.GetHomePath())
+		notes, err := storage.LoadAllNotesBolt(db)
 		if err != nil {
 			return fmt.Errorf("failing at getting all notes: %v", err)
 		}
 
-		for _, note := range notes {
-			for ref, value := range note {
-
+		for key, notes := range notes {
+			for _, note := range notes {
 				randomColor := IntRange(30, 37)
 
-				cmd.Printf("\n\033[1;%dm'%s'\033[0m\n", randomColor, ref)
+				cmd.Printf("\n\033[1;%dm'%s'\033[0m\n", randomColor, key)
 				cmd.Printf("---\n")
-				cmd.Printf("\033[3mTitle:\033[0m %s\n", value.Title)
-				cmd.Printf("\033[3mDescription:\033[0m %s\n", value.Content)
-				cmd.Printf("\033[3mCreated:\033[0m %s\n", value.CreatedAt.Format("2006-January-02 15:04"))
-				if value.Tag != "DEFAULT" {
-					cmd.Printf("\033[3mTag:\033[0m %s\n\n", value.Tag)
+				cmd.Printf("\033[3mTitle:\033[0m %s\n", note.Title)
+				cmd.Printf("\033[3mDescription:\033[0m %s\n", note. Content)
+				cmd.Printf("\033[3mCreated:\033[0m %s\n", note.CreatedAt.Format("2006-January-02 15:04"))
+				if note.Tag != "DEFAULT" {
+					cmd.Printf("\033[3mTag:\033[0m %s\n", note.Tag)
 				}
 			}
 		}
