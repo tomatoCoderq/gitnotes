@@ -8,8 +8,9 @@ import (
 	_ "maps"
 	"math/rand/v2"
 
+	"github.com/tomatoCoderq/gitnotes/internal/models"
 	"github.com/tomatoCoderq/gitnotes/internal/storage"
-	_"github.com/tomatoCoderq/gitnotes/internal/tools"
+	_ "github.com/tomatoCoderq/gitnotes/internal/tools"
 
 	"github.com/spf13/cobra"
 )
@@ -31,12 +32,28 @@ func IntRange(min, max int) int {
 	return rand.IntN(max-min) + min
 }
 
+func printFullNote(cmd *cobra.Command, note models.Note, key string) {
+	// Generating some color for ref
+	randomColor := IntRange(30, 37)
+
+	// Printing
+	cmd.Printf("\n\033[1;%dm'%s'\033[0m\n", randomColor, key)
+	cmd.Printf("---\n")
+	cmd.Printf("\033[3mTitle:\033[0m %s\n", note.Title)
+	cmd.Printf("\033[3mDescription:\033[0m %s\n", note. Content)
+	cmd.Printf("\033[3mCreated:\033[0m %s\n", note.CreatedAt.Format("2006-January-02 15:04"))
+	if note.Tag != "DEFAULT" {
+		cmd.Printf("\033[3mTag:\033[0m %s\n", note.Tag)
+	}
+}
+
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use: "list",
 	Short: longDescriptionList,
 	Args: cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Parsing flags
 		_, err := cmd.Flags().GetInt("limit")
 		if err != nil {
 			return fmt.Errorf("failing while getting limit: %v", err)
@@ -47,18 +64,11 @@ var listCmd = &cobra.Command{
 			return fmt.Errorf("failing at getting all notes: %v", err)
 		}
 
+		cmd.Printf("Found notes: %d", len(notes))
+
 		for key, notes := range notes {
 			for _, note := range notes {
-				randomColor := IntRange(30, 37)
-
-				cmd.Printf("\n\033[1;%dm'%s'\033[0m\n", randomColor, key)
-				cmd.Printf("---\n")
-				cmd.Printf("\033[3mTitle:\033[0m %s\n", note.Title)
-				cmd.Printf("\033[3mDescription:\033[0m %s\n", note. Content)
-				cmd.Printf("\033[3mCreated:\033[0m %s\n", note.CreatedAt.Format("2006-January-02 15:04"))
-				if note.Tag != "DEFAULT" {
-					cmd.Printf("\033[3mTag:\033[0m %s\n", note.Tag)
-				}
+				printFullNote(cmd, note, key)
 			}
 		}
 

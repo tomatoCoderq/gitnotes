@@ -93,6 +93,6 @@ Notes are stored locally in:
 
 - [ ] Expand tags/categories for notes
 - [ ] Export notes to Markdown
-- [ ] Shell completions (bash, zsh)
+- [X] Shell completions (bash, zsh)
 
 ---

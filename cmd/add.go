@@ -88,9 +88,7 @@ var addCmd = &cobra.Command{
 		if err = storage.SaveNoteBold(db, standardRef, note); err != nil {
 			return fmt.Errorf("failed to save note: %v", err)
 		}
-		// if err = storage.SaveNotes([]storage.NotesMap{{standardRef:note}}); err != nil {
-		// 	return fmt.Errorf("failed to save note: %v", err)
-		// }
+
 		cmd.Println("Note \033[1madded\033[0m for", standardRef, "succesfully!")
 		return nil
 	},

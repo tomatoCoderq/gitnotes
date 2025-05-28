@@ -27,6 +27,23 @@ const (
 		"  \033[31mThis action is irreversible.\033[0m Make sure you intend to delete the note."
 )
 
+func removeByParameter(ref, pureRef, parameter string, cmd *cobra.Command) error{
+	if strings.ToLower(parameter) == "ref" {
+		if err := storage.RemoveNotesByReferencBold(db, ref); err != nil {
+			return fmt.Errorf("failed during removing note: %v", err)
+		}
+	}
+
+	if strings.ToLower(parameter) == "title" {
+		if err := storage.RemoveNotesByTitleBold(db, ref); err != nil {
+			return fmt.Errorf("failed during removing note: %v", err)
+		}
+	}
+
+	cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", pureRef)
+	return nil
+}
+
 
 // rmCmd represents the rm command
 var rmCmd = &cobra.Command{
@@ -35,6 +52,7 @@ var rmCmd = &cobra.Command{
 	Long: longDescriptionRm,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Parsing flags
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
 			return fmt.Errorf("failed during parsing force: %v", err)
@@ -47,18 +65,14 @@ var rmCmd = &cobra.Command{
 
 		var ref string
 
+		ref = args[0]
 		if strings.ToLower(parameter) == "ref" {
-			ref = args[0]
 			ref, err = tools.ResolveGitRef(ref)
 			if err != nil {
 				return fmt.Errorf("failed during resolving reference: %v", err)
 			}
 		}
-
-		if strings.ToLower(parameter) == "title" {
-			ref = args[0]
-		}
-
+ 
 		pureRef, err := storage.GetRefFromNoteFields(db, ref)
 		if err != nil {
 			return fmt.Errorf("failed during getting ref: %v", err)
@@ -76,39 +90,13 @@ var rmCmd = &cobra.Command{
 			}
 
 			if strings.Compare(strings.ToLower(answer), "y") == 0 || strings.Compare(strings.ToLower(answer), "yes") == 0 {
-				if strings.ToLower(parameter) == "ref" {
-					if err = storage.RemoveNotesByReferencBold(db, ref); err != nil {
-						return fmt.Errorf("failed during removing note: %v", err)
-					}
-				}
-
-				if strings.ToLower(parameter) == "title" {
-					if err = storage.RemoveNotesByTitleBold(db, ref); err != nil {
-						return fmt.Errorf("failed during removing note: %v", err)
-					}
-				}
-
-				cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", pureRef)
-				return nil
+				return removeByParameter(ref, pureRef, parameter, cmd)
 			} else {
 				return nil
 			}
-		} else {
-			if strings.ToLower(parameter) == "ref" {
-				if err = storage.RemoveNotesByReferencBold(db, ref); err != nil {
-					return fmt.Errorf("failed during removing note: %v", err)
-				}
-			}
-
-			if strings.ToLower(parameter) == "title" {
-				if err = storage.RemoveNotesByTitleBold(db, ref); err != nil {
-					return fmt.Errorf("failed during removing note: %v", err)
-				}
-			}
-
-			cmd.Printf("\033[1mSuccesfully removed note \033[32m%s\033[0m\033[0m\n", pureRef)
-			return nil
 		}
+	
+		return removeByParameter(ref, pureRef, parameter, cmd)		
 	},
 }
 

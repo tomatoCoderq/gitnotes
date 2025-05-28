@@ -29,14 +29,13 @@ var showCmd = &cobra.Command{
 	Long: longDescriptionShow,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var notesMap storage.NotesMap
 		parameter, err := cmd.Flags().GetString("parameter")
 		if err != nil {
 			return fmt.Errorf("failed at parsing parameter %v", err)
 		}
 
 		ref := args[0]
-
-		var notesMap storage.NotesMap
 
 		switch parameter {
 		case "ref":
@@ -58,20 +57,10 @@ var showCmd = &cobra.Command{
 			return fmt.Errorf("failed to find note by ref: %v", err)
 		}
 
-		randomColor := IntRange(30, 37)
-
+		
 		for key, notes := range notesMap {
 			for _, note := range notes {
-				cmd.Printf("\033[1;%dm'%s'\033[0m\n", randomColor, key)
-				cmd.Printf("---\n")
-				cmd.Printf("\033[3mTitle:\033[0m %s\n", note.Title)
-				cmd.Printf("\033[3mDescription:\033[0m %s\n", note.Content)
-				if note.Tag != "DEFAULT" {
-					cmd.Printf("\033[3mCreated:\033[0m %s\n", note.CreatedAt.Format("2006-January-02 15:04"))
-					cmd.Printf("\033[3mTag:\033[0m %s\n\n", note.Tag)
-				} else {
-					cmd.Printf("\033[3mCreated:\033[0m %s\n\n", note.CreatedAt.Format("2006-January-02 15:04"))
-				}
+				printFullNote(cmd, note, key)
 			}
 		}
 
